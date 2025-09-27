@@ -1,0 +1,244 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Customer Live Website</title>
+    <script src="/socket.io/socket.io.js"></script>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 0; padding: 0; background-color: #f4f4f4; }
+        .container { max-width: 1200px; margin: 50px auto; padding: 20px; background: white; border-radius: 8px; box-shadow: 0 0 10px rgba(0,0,0,0.1); }
+        .auth-container, .main-features { display: flex; flex-direction: column; align-items: center; }
+        .main-features { flex-direction: row; align-items: flex-start; gap: 20px; }
+        .feature-box { border: 1px solid #ccc; padding: 15px; border-radius: 8px; width: 300px; background-color: #e9e9e9; }
+        #chat-area { flex-grow: 1; display: flex; flex-direction: column; width: 450px; }
+        #messages { list-style-type: none; margin: 0; padding: 0; overflow-y: scroll; height: 350px; border: 1px solid #ddd; padding: 10px; background-color: #fff; }
+        #messages li { padding: 5px 10px; border-bottom: 1px dotted #eee; }
+        #chat-form { display: flex; margin-top: 10px; }
+        #chat-form input { flex-grow: 1; padding: 8px; border: 1px solid #ccc; }
+        #chat-form button { padding: 8px 15px; background-color: #007bff; color: white; border: none; cursor: pointer; }
+        #whatsapp-box a { display: block; text-align: center; background-color: #25D366; color: white; padding: 10px; text-decoration: none; border-radius: 5px; margin-top: 10px; }
+        .auth-form input { width: 300px; padding: 10px; margin-bottom: 10px; border: 1px solid #ccc; border-radius: 4px; }
+        .auth-form button { padding: 10px 20px; background-color: #28a745; color: white; border: none; border-radius: 4px; cursor: pointer; }
+        .error { color: red; margin-bottom: 10px; }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <div id="auth-view">
+        <h1>Welcome! Login or Register</h1>
+        <div class="auth-container">
+            <form id="login-form" class="auth-form">
+                <h2>Login</h2>
+                <input type="text" id="login-username" placeholder="Username" required>
+                <input type="password" id="login-password" placeholder="Password" required>
+                <p class="error" id="login-error"></p>
+                <button type="submit">Login</button>
+            </form>
+            
+            <form id="register-form" class="auth-form" style="margin-top: 20px;">
+                <h2>Register</h2>
+                <input type="text" id="register-username" placeholder="Username" required>
+                <input type="password" id="register-password" placeholder="Password" required>
+                <p class="error" id="register-error"></p>
+                <button type="submit">Register</button>
+            </form>
+        </div>
+    </div>
+
+    <div id="main-view" style="display:none;">
+        <h1>Welcome, <span id="current-user-name">Customer</span>!</h1>
+        <div class="main-features">
+            
+            <div id="whatsapp-box" class="feature-box">
+                <h3>1. WhatsApp Se Connect Karen</h3>
+                <p>Jaldi contact ke liye yahan click karein.</p>
+                <a href="https://wa.me/923001234567" target="_blank">
+                    WhatsApp Par Baat Karein
+                </a>
+            </div>
+
+            <div id="complaint-box" class="feature-box">
+                <h3>2. Shikayat Darj Karwayen</h3>
+                <p>Apni kisi bhi shikayat ko darj karwayen.</p>
+                <form id="complaint-form">
+                    <input type="text" id="complaint-name" placeholder="Apka Naam" required style="width: 100%; padding: 5px; margin-bottom: 10px;">
+                    <textarea id="complaint-details" placeholder="Shikayat ki Tafseelat" required rows="4" style="width: 100%; padding: 5px; margin-bottom: 10px;"></textarea>
+                    <button type="submit">Shikayat Submit Karen</button>
+                    <p id="complaint-status" style="color: green; margin-top: 10px;"></p>
+                </form>
+            </div>
+
+            <div id="chat-area" class="feature-box">
+                <h3>3. Customer Live Chat</h3>
+                <p>Baaki customers ke sath baat cheet karein.</p>
+                <ul id="messages"></ul>
+                <form id="chat-form">
+                    <input id="m" autocomplete="off" placeholder="Apna message likhein..." />
+                    <button>Bhejein</button>
+                </form>
+            </div>
+
+        </div>
+    </div>
+</div>
+
+<script>
+    let currentUsername = '';
+    const authView = document.getElementById('auth-view');
+    const mainView = document.getElementById('main-view');
+    const userNameDisplay = document.getElementById('current-user-name');
+    
+    // --- AUTHENTICATION LOGIC ---
+
+    document.getElementById('register-form').addEventListener('submit', async (e) => {
+        e.preventDefault();
+        const username = document.getElementById('register-username').value;
+        const password = document.getElementById('register-password').value;
+        const errorElement = document.getElementById('register-error');
+        errorElement.textContent = '';
+
+        try {
+            const response = await fetch('/api/register', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ username, password })
+            });
+            const data = await response.json();
+            
+            if (data.success) {
+                errorElement.textContent = data.message;
+                errorElement.style.color = 'green';
+            } else {
+                errorElement.textContent = data.message;
+                errorElement.style.color = 'red';
+            }
+        } catch (error) {
+            errorElement.textContent = 'Network error or server down.';
+            errorElement.style.color = 'red';
+        }
+    });
+
+    document.getElementById('login-form').addEventListener('submit', async (e) => {
+        e.preventDefault();
+        const username = document.getElementById('login-username').value;
+        const password = document.getElementById('login-password').value;
+        const errorElement = document.getElementById('login-error');
+        errorElement.textContent = '';
+
+        try {
+            const response = await fetch('/api/login', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ username, password })
+            });
+            const data = await response.json();
+            
+            if (data.success && data.redirect) {
+                // Successful login: switch view and store username
+                currentUsername = username;
+                localStorage.setItem('username', username);
+                loadMainView();
+            } else {
+                errorElement.textContent = data.message;
+            }
+        } catch (error) {
+            errorElement.textContent = 'Login failed due to network error.';
+        }
+    });
+
+    // Function to switch to main view
+    function loadMainView() {
+        authView.style.display = 'none';
+        mainView.style.display = 'block';
+        userNameDisplay.textContent = currentUsername;
+        initChat(); // Initialize chat only after login
+    }
+
+    // Check URL path to decide which view to show on load
+    window.onload = function() {
+        const urlPath = window.location.pathname;
+        const storedUser = localStorage.getItem('username');
+
+        if (urlPath === '/main' && storedUser) {
+            currentUsername = storedUser;
+            loadMainView();
+        } else {
+            // Redirect to root if somehow landed on /main without stored user
+            if (urlPath === '/main') window.location.href = '/'; 
+        }
+    };
+
+
+    // --- COMPLAINT LOGIC ---
+    document.getElementById('complaint-form').addEventListener('submit', async (e) => {
+        e.preventDefault();
+        const customerName = document.getElementById('complaint-name').value;
+        const details = document.getElementById('complaint-details').value;
+        const statusElement = document.getElementById('complaint-status');
+        statusElement.textContent = 'Submitting...';
+
+        try {
+            const response = await fetch('/api/complaint', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ customerName, details })
+            });
+            const data = await response.json();
+            
+            if (data.success) {
+                statusElement.textContent = data.message;
+                document.getElementById('complaint-form').reset(); // Clear form
+            } else {
+                statusElement.textContent = data.message;
+                statusElement.style.color = 'red';
+            }
+        } catch (error) {
+            statusElement.textContent = 'Complaint submission failed.';
+            statusElement.style.color = 'red';
+        }
+    });
+
+
+    // --- CHAT LOGIC ---
+    function displayMessage(msg) {
+        const item = document.createElement('li');
+        item.textContent = `${msg.username}: ${msg.message}`;
+        document.getElementById('messages').appendChild(item);
+        document.getElementById('messages').scrollTop = document.getElementById('messages').scrollHeight;
+    }
+
+    function initChat() {
+        // Connect to the Socket.IO server
+        const socket = io();
+        const form = document.getElementById('chat-form');
+        const input = document.getElementById('m');
+        
+        // Load chat history
+        socket.on('chat history', function(history) {
+            history.forEach(msg => displayMessage(msg));
+        });
+
+        // Handle sending a message
+        form.addEventListener('submit', function(e) {
+            e.preventDefault();
+            if (input.value) {
+                const messageData = {
+                    username: currentUsername, // Use the logged-in username
+                    message: input.value
+                };
+                
+                // Emit the message to the server
+                socket.emit('chat message', messageData);
+                input.value = ''; 
+            }
+        });
+
+        // Handle receiving a message from the server
+        socket.on('chat message', function(msg) {
+            displayMessage(msg);
+        });
+    }
+
+</script>
+</body>
+</html>
