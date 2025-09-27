@@ -1,0 +1,18 @@
+{
+  "name": "Customer Live Website",
+  "description": "A Node.js app with real-time chat and PostgreSQL.",
+  "keywords": ["node", "express", "socket.io", "postgresql"],
+  "image": "heroku/nodejs",
+  "success_url": "/main",
+  "formation": {
+    "web": {
+      "quantity": 1,
+      "size": "free"
+    }
+  },
+  "addons": [
+    {
+      "plan": "heroku-postgresql"
+    }
+  ]
+}
